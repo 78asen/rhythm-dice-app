@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #74b9ff, #a29bfe);
+            background: linear-gradient(135deg, #0984e3, #6c5ce7);
             margin: 0;
             padding: 20px;
             display: flex;
@@ -20,12 +20,12 @@
             background: #ffffff;
             padding: 30px;
             border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             text-align: center;
             max-width: 500px;
             width: 100%;
         }
-        h1 { color: #0984e3; margin-bottom: 5px; font-size: 24px; }
+        h1 { color: #0984e3; margin-bottom: 5px; font-size: 26px; }
         .subtitle { font-size: 14px; color: #636e72; margin-bottom: 20px; }
         .btn {
             background-color: #00b894;
@@ -45,29 +45,47 @@
         .btn-mic:hover { background-color: #d63031; }
         .dice-box {
             font-size: 60px;
-            margin: 20px 0;
-            background: #dfe6e9;
+            margin: 15px 0;
+            background: #f1f2f6;
             border-radius: 15px;
             padding: 20px;
             display: inline-block;
             min-width: 100px;
+            border: 2px dashed #74b9ff;
         }
         .rhythm-display {
-            background: #f1f2f6;
+            background: #f8f9fa;
             padding: 15px;
             border-radius: 10px;
             margin: 15px 0;
-            border-left: 5px solid #0984e3;
+            border-left: 6px solid #0984e3;
             text-align: left;
         }
         .rhythm-title { font-weight: bold; color: #2d3436; font-size: 18px; }
         .rhythm-desc { color: #636e72; font-size: 14px; margin-top: 5px; }
+        
+        /* Volume Meter Live Style */
+        .meter-container {
+            background: #dfe6e9;
+            border-radius: 10px;
+            height: 16px;
+            width: 100%;
+            margin: 15px 0;
+            overflow: hidden;
+            display: none;
+        }
+        .meter-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #00b894, #fdcb6e, #d63031);
+            transition: width 0.05s ease;
+        }
         .feedback {
             font-size: 18px;
             font-weight: bold;
             margin-top: 20px;
-            padding: 10px;
-            border-radius: 8px;
+            padding: 12px;
+            border-radius: 10px;
         }
         .success { background-color: #55efc4; color: #00b894; }
         .try-again { background-color: #ffeaa7; color: #d63031; }
@@ -77,7 +95,7 @@
 
 <div class="container">
     <h1>🎵 RhythmDice AI</h1>
-    <div class="subtitle">Aplikasi Latihan Corak Irama Sekolah Rendah</div>
+    <div class="subtitle">Alat Inovasi Pintar Pengesanan Irama Muzik</div>
 
     <button class="btn" onclick="rollDice()">🎲 Baling Dadu Mula</button>
     
@@ -90,19 +108,24 @@
         <div id="rhythmDesc" class="rhythm-desc">Not: -</div>
     </div>
 
-    <button id="micBtn" class="btn btn-mic" onclick="startListening()" style="display:none;" disabled>🎙️ Rakam Tepukan (0s)</button>
+    <!-- Live VU Meter untuk semak mic -->
+    <div id="meterContainer" class="meter-container">
+        <div id="meterBar" class="meter-bar"></div>
+    </div>
+
+    <button id="micBtn" class="btn btn-mic" onclick="startListening()" style="display:none;" disabled>🎙️ Rakam Tepukan</button>
 
     <div id="feedbackBox"></div>
 </div>
 
 <script>
     const patterns = {
-        1: { name: "Corak 1 (Semibrif)", notes: "Semibrif (Ta-a-a-a)", duration: 4 },
-        2: { name: "Corak 2 (Minim)", notes: "Minim, Minim (Ta-a, Ta-a)", duration: 4 },
-        3: { name: "Corak 3 (Krochet)", notes: "Krochet, Krochet, Krochet, Krochet (Ta, Ta, Ta, Ta)", duration: 4 },
-        4: { name: "Corak 4 (Kuaver Campur)", notes: "Kuaver, Kuaver, Krochet, Krochet (Ti-ti, Ti-ti, Ta, Ta)", duration: 4 },
-        5: { name: "Corak 5 (Minim & Krochet)", notes: "Minim, Krochet, Krochet (Ta-a, Ta, Ta)", duration: 4 },
-        6: { name: "Corak 6 (Kuaver Penuh)", notes: "8 Kuaver (Ti-ti Ti-ti Ti-ti Ti-ti)", duration: 4 }
+        1: { name: "Corak 1 (Semibrif)", targetClaps: 1, desc: "Semibrif (Ta-a-a-a) - 1 Tepukan Panjang" },
+        2: { name: "Corak 2 (Minim)", targetClaps: 2, desc: "Minim, Minim (Ta-a, Ta-a) - 2 Tepukan" },
+        3: { name: "Corak 3 (Krochet)", targetClaps: 4, desc: "Krochet x4 (Ta, Ta, Ta, Ta) - 4 Tepukan Sekata" },
+        4: { name: "Corak 4 (Kuaver Campur)", targetClaps: 6, desc: "Kuaver & Krochet (Ti-ti, Ti-ti, Ta, Ta)" },
+        5: { name: "Corak 5 (Minim & Krochet)", targetClaps: 3, desc: "Minim, Krochet, Krochet (Ta-a, Ta, Ta)" },
+        6: { name: "Corak 6 (Kuaver Penuh)", targetClaps: 8, desc: "8 Kuaver (Ti-ti Ti-ti Ti-ti Ti-ti) - 8 Tepukan" }
     };
 
     let currentPattern = null;
@@ -111,14 +134,13 @@
         const diceEl = document.getElementById("diceResult");
         diceEl.innerText = "🌀";
         
-        // Simulasikan putaran dadu
         setTimeout(() => {
             const roll = Math.floor(Math.random() * 6) + 1;
             diceEl.innerText = roll;
             
             currentPattern = patterns[roll];
             document.getElementById("rhythmTitle").innerText = currentPattern.name;
-            document.getElementById("rhythmDesc").innerText = "Sila tepuk corak: " + currentPattern.notes;
+            document.getElementById("rhythmDesc").innerText = "Sila tepuk: " + currentPattern.desc;
             document.getElementById("rhythmCard").style.display = "block";
             
             const micBtn = document.getElementById("micBtn");
@@ -127,15 +149,17 @@
             micBtn.innerText = "🎙️ Rakam Tepukan";
             
             document.getElementById("feedbackBox").innerHTML = "";
+            document.getElementById("meterContainer").style.display = "block";
         }, 500);
     }
 
     async function startListening() {
         const micBtn = document.getElementById("micBtn");
         const feedbackBox = document.getElementById("feedbackBox");
+        const meterBar = document.getElementById("meterBar");
         
         micBtn.disabled = true;
-        micBtn.innerText = "⏳ Mendengar tepukan... Sila tepuk sekarang!";
+        micBtn.innerText = "⏳ Mendengar... Tepuk sekarang!";
         feedbackBox.innerHTML = "";
 
         try {
@@ -143,42 +167,81 @@
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const analyser = audioContext.createAnalyser();
             const microphone = audioContext.createMediaStreamSource(stream);
-            microphone.connect(analyser);
-            analyser.fftSize = 512;
             
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+            analyser.fftSize = 1024;
+            microphone.connect(analyser);
+            
+            const bufferLength = analyser.fftSize;
+            const dataArray = new Float32Array(bufferLength);
+            
             let clapsDetected = 0;
-            let isClapping = false;
-            let startTime = Date.now();
+            let lastClapTime = 0;
+            let isRunning = true;
 
-            // Rakam selama 4 saat
-            const recordingInterval = setInterval(() => {
-                analyser.getByteFrequencyData(dataArray);
-                let sum = dataArray.reduce((a, b) => a + b, 0);
-                let average = sum / dataArray.length;
-
-                // Mengesan bunyi tepukan kuat (threshold > 45)
-                if (average > 45 && !isClapping) {
-                    isClapping = true;
-                    clapsDetected++;
-                } else if (average < 20) {
-                    isClapping = false;
+            // Algoritma Pengesanan Transient RMS Lanjutan
+            const checkAudio = () => {
+                if (!isRunning) return;
+                
+                analyser.getFloatTimeDomainData(dataArray);
+                
+                // Kira tenaga RMS (Root Mean Square) gelombang audio
+                let sumSquares = 0;
+                for (let i = 0; i < bufferLength; i++) {
+                    sumSquares += dataArray[i] * dataArray[i];
                 }
-            }, 100);
+                let rms = Math.sqrt(sumSquares / bufferLength);
+                
+                // Paparkan tahap volum secara langsung pada meter bar (skala 0-100%)
+                let volumePercent = Math.min(100, Math.round(rms * 400));
+                meterBar.style.width = volumePercent + "%";
 
+                let now = Date.now();
+                
+                // Ambang RMS pintar untuk tepukan (0.12 menunjukkan letupan tenaga tepukan tangan yang jelas)
+                // Jeda masa 200ms menghalang gema dikesan berulang kali
+                if (rms > 0.12 && (now - lastClapTime) > 200) {
+                    clapsDetected++;
+                    lastClapTime = now;
+                    micBtn.innerText = `⏳ Dikesan: ${clapsDetected} tepukan...`;
+                }
+
+                requestAnimationFrame(checkAudio);
+            };
+
+            checkAudio();
+
+            // Rakam selama 4 saat penuh
             setTimeout(() => {
-                clearInterval(recordingInterval);
-                stream.getTracks().forEach(track => track.stop()); // Tutup mic
+                isRunning = false;
+                stream.getTracks().forEach(track => track.stop());
                 audioContext.close();
 
                 micBtn.disabled = false;
                 micBtn.innerText = "🎙️ Rakam Semula";
+                meterBar.style.width = "0%";
 
-                // Logik penilaian ringkas berasaskan jumlah tepukan / tenaga audio
-                if (clapsDetected >= 2) {
+                let target = currentPattern.targetClaps;
+                let isCorrect = false;
+
+                // Penilaian ketat dan adil
+                if (target === 1) {
+                    isCorrect = (clapsDetected === 1);
+                } else if (target === 2) {
+                    isCorrect = (clapsDetected === 2);
+                } else if (target === 3) {
+                    isCorrect = (clapsDetected === 3);
+                } else if (target === 4) {
+                    isCorrect = (clapsDetected >= 3 && clapsDetected <= 5);
+                } else if (target === 6) {
+                    isCorrect = (clapsDetected >= 5 && clapsDetected <= 7);
+                } else if (target === 8) {
+                    isCorrect = (clapsDetected >= 7 && clapsDetected <= 9);
+                }
+
+                if (isCorrect) {
                     feedbackBox.innerHTML = `<div class="feedback success">🎉 Tahniah! Tepukan Betul & Tepat! (${clapsDetected} tepukan dikesan)</div>`;
                 } else {
-                    feedbackBox.innerHTML = `<div class="feedback try-again">⚠️ Kurang tepat atau terlalu perlahan. Cuba Lagi!</div>`;
+                    feedbackBox.innerHTML = `<div class="feedback try-again">⚠️ Dikesan ${clapsDetected} tepukan. Sasaran tepat ialah ${target} tepukan. Cuba Lagi!</div>`;
                 }
             }, 4000);
 
